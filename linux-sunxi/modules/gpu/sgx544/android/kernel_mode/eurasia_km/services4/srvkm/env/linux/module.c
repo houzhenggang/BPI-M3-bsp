@@ -73,10 +73,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define	PVR_MOD_STATIC	static
 #endif
 
-#if defined(PVR_LDM_PLATFORM_PRE_REGISTERED)
-#if !defined(NO_HARDWARE)
+#if (defined(PVR_LDM_PLATFORM_PRE_REGISTERED) || defined(PVR_LDM_DEVICE_TREE)) && !defined(NO_HARDWARE)
 #define PVR_USE_PRE_REGISTERED_PLATFORM_DEV
 #endif
+
+#if defined(PVR_LDM_DEVICE_TREE) && !defined(NO_HARDWARE)
+#define PVR_USE_DEVICE_TREE
 #endif
 
 #include <linux/init.h>
@@ -166,9 +168,17 @@ module_param(gPVRDebugLevel, uint, 0644);
 MODULE_PARM_DESC(gPVRDebugLevel, "Sets the level of debug output (default 0x7)");
 #endif /* defined(PVRSRV_NEED_PVR_DPF) */
 
-/* Newer kernels no longer support __devinitdata */
 #if !defined(__devinitdata)
 #define __devinitdata
+#endif
+#if !defined(__devinit)
+#define __devinit
+#endif
+#if !defined(__devexit)
+#define __devexit
+#endif
+#if !defined(__devexit_p)
+#define __devexit_p
 #endif
 
 #if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
@@ -258,23 +268,36 @@ struct pci_device_id powervr_id_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, powervr_id_table);
 #endif
 
+#if defined(PVR_USE_DEVICE_TREE)
+static struct of_device_id powervr_id_table[] = {
+	{
+		.compatible = SYS_SGX_DEV_NAME
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, powervr_id_table);
+#else
 #if defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 static struct platform_device_id powervr_id_table[] __devinitdata = {
 	{SYS_SGX_DEV_NAME, 0},
 	{}
 };
 #endif
+#endif
 
 static LDM_DRV powervr_driver = {
 #if defined(PVR_LDM_PLATFORM_MODULE)
 	.driver = {
 		.name		= DRVNAME,
+#if defined(PVR_USE_DEVICE_TREE)
+		.of_match_table = powervr_id_table,
+#endif
 	},
 #endif
 #if defined(PVR_LDM_PCI_MODULE)
 	.name		= DRVNAME,
 #endif
-#if defined(PVR_LDM_PCI_MODULE) || defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
+#if (defined(PVR_LDM_PCI_MODULE) || defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)) && !defined(PVR_USE_DEVICE_TREE)
 	.id_table = powervr_id_table,
 #endif
 	.probe		= PVRSRVDriverProbe,
@@ -424,6 +447,16 @@ static void __devexit PVRSRVDriverRemove(LDM_DEV *pDevice)
 }
 #endif /* defined(PVR_LDM_MODULE) */
 
+#if !defined(SUPPORT_DRI_DRM)
+struct device *PVRLDMGetDevice(void)
+{
+#if defined(PVR_LDM_MODULE)
+	return &gpsPVRLDMDev->dev;
+#else
+	return NULL;
+#endif
+}
+#endif
 
 #if defined(PVR_LDM_MODULE) || defined(SUPPORT_DRI_DRM)
 static PVRSRV_LINUX_MUTEX gsPMMutex;

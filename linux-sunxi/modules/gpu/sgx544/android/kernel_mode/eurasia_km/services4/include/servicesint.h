@@ -85,9 +85,10 @@ typedef enum _PVRSRV_MEMTYPE_
 	PVRSRV_MEMTYPE_DEVICECLASS	= 2,
 	PVRSRV_MEMTYPE_WRAPPED		= 3,
 	PVRSRV_MEMTYPE_MAPPED		= 4,
-	PVRSRV_MEMTYPE_ION			= 5,
-	PVRSRV_MEMTYPE_ALLOC		= 6,
-	PVRSRV_MEMTYPE_FREE	    	= 7
+	PVRSRV_MEMTYPE_ION		= 5,
+	PVRSRV_MEMTYPE_DMABUF		= 6,
+	PVRSRV_MEMTYPE_ALLOC		= 7,
+	PVRSRV_MEMTYPE_FREE	    	= 8
 } PVRSRV_MEMTYPE;
 
 #if defined (MEM_TRACK_INFO_DEBUG)
@@ -153,6 +154,10 @@ typedef struct _PVRSRV_KERNEL_MEM_INFO_
 
 	IMG_HANDLE				hIonSyncInfo;
 
+#if defined(SUPPORT_DMABUF)
+	IMG_HANDLE				hDmaBufSyncInfo;
+#endif
+
 	PVRSRV_MEMTYPE				memType;
 
     /*
@@ -184,6 +189,10 @@ typedef struct _PVRSRV_KERNEL_MEM_INFO_
 	} sShareMemWorkaround;
 #if defined (MEM_TRACK_INFO_DEBUG)
 	IMG_CHAR heapId[128];
+#endif
+#if defined (PVRSRV_DEVMEM_TIME_STATS)
+	IMG_UINT32 ui32TimeToDevMap;
+	IMG_UINT32 *pui32TimeToDevUnmap;	/* API user to provide space for storing "unmap" time */
 #endif
 } PVRSRV_KERNEL_MEM_INFO;
 

@@ -252,8 +252,8 @@ gmac_mdio          = port:PD23<2><default><3><default>
 gmac_power1        = "vcc-gmac-25:2500000"
 gmac_power2        = "vcc-gmac-33"
 gmac_power3        =
-tx-delay           = 7
-rx-delay           = 7
+tx_delay           = 7
+rx_delay           = 7
 
 ;---------------------------------------------------------------------------------------------------------
 ; wakeup_src_para:
@@ -380,7 +380,7 @@ uart_regulator	= "vcc-io"
 ;SPI controller configuration
 ;----------------------------------------------------------------------------------
 [spi0]
-spi_used       = 0
+spi_used       = 1
 spi_cs_bitmap  = 1
 spi_mosi       = port:PC00<3><default><default><default>
 spi_miso       = port:PC01<3><default><default><default>
@@ -404,11 +404,13 @@ spi_regulator  = "vcc-io"
 spi_dev_num = 1
 
 [spi_board0]
-modalias      = "m25p32"
+modalias      = "spidev"
 max_speed_hz  = 33000000
 bus_num       = 0
 chip_select   = 0
-mode          = 0
+mode          = 3
+full_duplex   = 0
+manual_cs     = 0
 
 ;----------------------------------------------------------------------------------
 ;resistance tp configuration
@@ -477,7 +479,7 @@ tkey_int            =
 [motor_para]
 motor_used          = 1
 motor_shake         = 0
-motor_ldo           = vcc-vibrator
+motor_ldo           = "vcc-vibrator"
 motor_ldo_voltage   = 3300
 
 ;----------------------------------------------------------------------------------
@@ -619,6 +621,12 @@ lcd0_backlight           = 50
 lcd1_backlight           = 50
 
 
+
+;----------------------------------------------------------------------------------
+; HDMI to DVI converters
+; hdmi_hdcp_enable    = 0
+; hdmi_cts_compatibility = 1
+;----------------------------------------------------------------------------------
 [hdmi_para]
 hdmi_used           = 1
 hdmi_power          = "vcc-hdmi-18"
@@ -886,7 +894,7 @@ tvin_channel_num    =
 ;--------------------------------------------------------------------------------
 [mmc0_para]
 sdc_used          = 1
-sdc_detmode       = 1
+sdc_detmode       = 3
 sdc_buswidth      = 4
 sdc_clk           = port:PF02<2><1><2><default>
 sdc_cmd           = port:PF03<2><1><2><default>
@@ -973,8 +981,11 @@ smc_sda             =
 ;--------------------------------
 [usbc0]
 usb_used            = 1
-usb_port_type       = 2
-usb_detect_type     = 1
+;change USB0(microusb) from OTG to host only 
+;usb_port_type       = 2
+;usb_detect_type     = 1
+usb_port_type       = 1
+usb_detect_type     = 0
 usb_id_gpio         = port:PH11<0><1><default><default>
 usb_det_vbus_gpio   = "axp_ctrl"
 usb_drv_vbus_gpio   = port:power4<1><0><default><0>
@@ -1347,7 +1358,7 @@ ir_tx               =
 
 
 ;----------------------------------------------------------------------------------                                   
-;gpio configuration   Justin
+;gpio configuration 
 ;----------------------------------------------------------------------------------
 [gpio_para]                    
 gpio_used                = 1
@@ -1381,6 +1392,14 @@ gpio_pin_26              = port:PE5<1><default><default><1>
 gpio_pin_27              = port:PE18<1><default><default><1>
 gpio_pin_28              = port:PE19<1><default><default><1>
 
+
+
+;----------------------------------------------------------------------------------
+;1-wire parameters (default - PL10)
+;----------------------------------------------------------------------------------
+;[w1_para]
+;w1_used = 1
+;gpio = 3
 
 ;-------------------------------------------------------------------------------------
 ;pmu_used                    ---0:not used,1:used

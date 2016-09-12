@@ -66,7 +66,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/interrupt.h>
 #include <asm/hardirq.h>
 #include <linux/timer.h>
-#if defined(MEM_TRACK_INFO_DEBUG)
+#if defined(MEM_TRACK_INFO_DEBUG) || defined (PVRSRV_DEVMEM_TIME_STATS)
 #include <linux/time.h>
 #endif
 #include <linux/capability.h>
@@ -562,10 +562,28 @@ IMG_VOID OSBreakResourceLock (PVRSRV_RESOURCE *psResource, IMG_UINT32 ui32ID)
 ******************************************************************************/
 PVRSRV_ERROR OSCreateResource(PVRSRV_RESOURCE *psResource)
 {
+#if !defined(PVR_LINUX_USING_WORKQUEUES) && defined(__linux__)
+	PVRSRV_ERROR eError = PVRSRV_OK;
+#endif
+
     psResource->ui32ID = 0;
     psResource->ui32Lock = 0;
+#if !defined(PVR_LINUX_USING_WORKQUEUES) && defined(__linux__)
+	psResource->pOSSyncPrimitive = IMG_NULL;
 
-    return PVRSRV_OK;
+	eError = OSAllocMem(PVRSRV_OS_PAGEABLE_HEAP, sizeof(spinlock_t), (IMG_VOID**)&psResource->pOSSyncPrimitive, IMG_NULL,
+		"Resource Spinlock");
+
+	if (eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR,"OSCreateResource: Spinlock could not be alloc'd"));
+		return eError;
+	}
+
+	spin_lock_init((spinlock_t*)psResource->pOSSyncPrimitive);
+#endif /* !defined(PVR_LINUX_USING_WORKQUEUES) && defined(__linux__) */
+
+	return PVRSRV_OK;
 }
 
 
@@ -583,6 +601,13 @@ PVRSRV_ERROR OSCreateResource(PVRSRV_RESOURCE *psResource)
 ******************************************************************************/
 PVRSRV_ERROR OSDestroyResource (PVRSRV_RESOURCE *psResource)
 {
+#if !defined(PVR_LINUX_USING_WORKQUEUES) && defined(__linux__)
+	if (psResource->pOSSyncPrimitive)
+	{
+		OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP, sizeof(spinlock_t), (IMG_VOID*)psResource->pOSSyncPrimitive, IMG_NULL);
+	}
+#endif /* !defined(PVR_LINUX_USING_WORKQUEUES) && defined(__linux__) */
+
     OSBreakResourceLock (psResource, psResource->ui32ID);
 
     return PVRSRV_OK;
@@ -682,6 +707,30 @@ IMG_VOID OSReleaseThreadQuanta(IMG_VOID)
 {
     schedule();
 }
+
+#if defined (PVRSRV_DEVMEM_TIME_STATS)
+/*!
+******************************************************************************
+
+ @Function OSClockMonotonicus
+
+ @Description	This function returns the raw monotonic clock time in microseconds
+				(i.e. un-affected by NTP or similar changes)
+
+ @Input void
+
+ @Return - monotonic clock time in (us)
+
+******************************************************************************/ 
+IMG_UINT64 OSClockMonotonicus(IMG_VOID)
+{
+	struct timespec ts;
+
+	getrawmonotonic(&ts);
+
+	return ((unsigned long)ts.tv_sec * 1000000ul + (unsigned long)ts.tv_nsec / 1000ul);
+}
+#endif
 
 
 /*!
@@ -1548,6 +1597,81 @@ PVRSRV_ERROR OSUnlockResource (PVRSRV_RESOURCE *psResource, IMG_UINT32 ui32ID)
     
     return eError;
 }
+
+
+#if !defined(PVR_LINUX_USING_WORKQUEUES)
+/*!
+******************************************************************************
+
+ @Function OSLockResourceAndBlockMISR
+
+ @Description locks an OS dependant Resource and blocks MISR interrupts
+
+ @Input phResource - pointer to OS dependent Resource
+ @Input bBlock - do we want to block?
+
+ @Return error status
+
+******************************************************************************/
+PVRSRV_ERROR OSLockResourceAndBlockMISR ( PVRSRV_RESOURCE 	*psResource,
+								IMG_UINT32 			ui32ID)
+
+{
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	spin_lock_bh(psResource->pOSSyncPrimitive);
+
+	if(!OS_TAS(&psResource->ui32Lock))
+		psResource->ui32ID = ui32ID;
+	else
+		eError = PVRSRV_ERROR_UNABLE_TO_LOCK_RESOURCE;
+
+	return eError;
+}
+
+
+/*!
+******************************************************************************
+
+ @Function OSUnlockResourceAndUnblockMISR
+
+ @Description unlocks an OS dependant resource and unblocks MISR interrupts
+
+ @Input phResource - pointer to OS dependent resource structure
+
+ @Return
+
+******************************************************************************/
+PVRSRV_ERROR OSUnlockResourceAndUnblockMISR (PVRSRV_RESOURCE *psResource, IMG_UINT32 ui32ID)
+{
+	volatile IMG_UINT32 *pui32Access = (volatile IMG_UINT32 *)&psResource->ui32Lock;
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	if(*pui32Access)
+	{
+		if(psResource->ui32ID == ui32ID)
+		{
+			psResource->ui32ID = 0;
+			smp_mb();
+			*pui32Access = 0;
+			spin_unlock_bh(psResource->pOSSyncPrimitive);
+		}
+		else
+		{
+			PVR_DPF((PVR_DBG_ERROR,"OSUnlockResourceAndUnblockMISR: Resource %p is not locked with expected value.", psResource));
+			PVR_DPF((PVR_DBG_MESSAGE,"Should be %x is actually %x", ui32ID, psResource->ui32ID));
+			eError = PVRSRV_ERROR_INVALID_LOCK_ID;
+		}
+	}
+	else
+	{
+		PVR_DPF((PVR_DBG_ERROR,"OSUnlockResourceAndUnblockMISR: Resource %p is not locked", psResource));
+		eError = PVRSRV_ERROR_RESOURCE_NOT_LOCKED;
+	}
+
+	return eError;
+}
+#endif
 
 
 /*!

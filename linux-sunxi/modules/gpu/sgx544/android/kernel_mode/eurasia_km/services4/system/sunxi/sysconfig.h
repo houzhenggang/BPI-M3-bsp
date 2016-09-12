@@ -1,5 +1,7 @@
 /*************************************************************************/ /*!
+@Title          System Description Header
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
+@Description    This header provides system-specific declarations and macros
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -36,6 +38,7 @@ PURPOSE AND NONINFRINGEMENT; AND (B) IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  
 */ /**************************************************************************/
 
 #if !defined(__SOCCONFIG_H__)
@@ -71,7 +74,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(PVR_LDM_PLATFORM_PRE_REGISTERED_DEV)
 #define	SYS_SGX_DEV_NAME	PVR_LDM_PLATFORM_PRE_REGISTERED_DEV
 #else
-#define	SYS_SGX_DEV_NAME	"sunxi_gpu"
+#define	SYS_SGX_DEV_NAME	"pvrsrvkm"
 #endif	/* defined(PVR_LDM_PLATFORM_PRE_REGISTERED_DEV) */
 #endif	/* defined(__linux__) */
 

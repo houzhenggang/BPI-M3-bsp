@@ -1,5 +1,7 @@
 /*************************************************************************/ /*!
+@Title          System dependent utilities
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
+@Description    Provides system-specific functions
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -36,10 +38,42 @@ PURPOSE AND NONINFRINGEMENT; AND (B) IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  
 */ /**************************************************************************/
 #include <aw/platform.h>
+#include <linux/version.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/hardirq.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
 
+#include "sgxdefs.h"
+#include "services_headers.h"
+#include "sysinfo.h"
+#include "sgxapi_km.h"
+#include "sysconfig.h"
+#include "sgxinfokm.h"
+#include "syslocal.h"
+
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <mach/hardware.h>
+#include <mach/platform.h>
+//#include <mach/clock.h>
+
+#include "oemfuncs.h"
+
+#define	ONE_MHZ	1000000
+#define	HZ_TO_MHZ(m) ((m) / ONE_MHZ)
+
+struct clk *h_ahb_gpu, *h_gpu_coreclk, *h_gpu_hydclk, *h_gpu_memclk, *h_gpu_hydpll, *h_gpu_corepll;
+struct regulator *gpu_power;
+
+#if defined(LDM_PLATFORM) 
 extern struct platform_device *gpsPVRLDMDev;
+#endif
 
 extern int ths_read_data(int value);
 
@@ -614,7 +648,6 @@ static IMG_VOID ParseFex(IMG_VOID)
 	}
 #endif /* CONFIG_CPU_BUDGET_THERMAL */
 }
-
 static PVRSRV_ERROR PowerLockWrap(SYS_SPECIFIC_DATA *psSysSpecData, IMG_BOOL bTryLock)
 {
 	if (!in_interrupt())
@@ -711,7 +744,7 @@ IMG_VOID SysGetSGXTimingInformation(SGX_TIMING_INFORMATION *psTimingInfo)
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData, IMG_BOOL bNoDev)
+PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData)
 {
 #if !defined(NO_HARDWARE)
 	int i;
@@ -733,12 +766,8 @@ PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData, IMG_BOOL bNoDev)
 			PVR_DPF((PVR_DBG_ERROR, "Failed to enable gpu %s clock!\n", clk_data[i].clk_name));
 		}
 	}
-
-	/*
-	 * pm_runtime_get_sync will fail if called as part of device
-	 * unregistration.
-	 */
-	if (!bNoDev)
+	
+#if defined(LDM_PLATFORM)
 	{
 		/*
 		 * pm_runtime_get_sync returns 1 after the module has
@@ -750,8 +779,8 @@ PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData, IMG_BOOL bNoDev)
 			PVR_DPF((PVR_DBG_ERROR, "EnableSGXClocks: pm_runtime_get_sync failed (%d)", -res));
 			return PVRSRV_ERROR_UNABLE_TO_ENABLE_CLOCK;
 		}
-		psSysSpecData->bPMRuntimeGetSync = IMG_TRUE;
 	}
+#endif /* defined(LDM_PLATFORM)*/
 
 	SysEnableSGXInterrupts(psSysData);
 
@@ -761,8 +790,11 @@ PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData, IMG_BOOL bNoDev)
 #else	/* !defined(NO_HARDWARE) */
 	PVR_UNREFERENCED_PARAMETER(psSysData);
 #endif	/* !defined(NO_HARDWARE) */
+
+        AWDEBUG("%s: sgx clock has been enabled ",__func__);
 	return PVRSRV_OK;
 }
+
 
 /*!
 ******************************************************************************
@@ -794,16 +826,17 @@ IMG_VOID DisableSGXClocks(SYS_DATA *psSysData)
 	{
 		clk_disable_unprepare(clk_data[i].clk_handle);
 	}
-
-	if (psSysSpecData->bPMRuntimeGetSync)
+	
+	
+#if defined(LDM_PLATFORM)
 	{
 		int res = pm_runtime_put_sync(&gpsPVRLDMDev->dev);
 		if (res < 0)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "DisableSGXClocks: pm_runtime_put_sync failed (%d)", -res));
 		}
-		psSysSpecData->bPMRuntimeGetSync = IMG_FALSE;
 	}
+#endif /* defined(LDM_PLATFORM)*/
 
 	/* Indicate that the SGX clocks are disabled */
 	atomic_set(&psSysSpecData->sSGXClocksEnabled, 0);
@@ -876,7 +909,7 @@ PVRSRV_ERROR EnableSystemClocks(SYS_DATA *psSysData)
 	}
 
 	EnableGpuPower();
-
+	
 	/* Delay for gpu power stability */
 	mdelay(2);
 
@@ -945,3 +978,4 @@ PVRSRV_ERROR SysDvfsDeinitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 
 	return PVRSRV_OK;
 }
+

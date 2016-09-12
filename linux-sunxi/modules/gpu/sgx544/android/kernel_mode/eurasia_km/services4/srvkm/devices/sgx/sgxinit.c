@@ -298,6 +298,9 @@ static PVRSRV_ERROR InitDevInfo(PVRSRV_PER_PROCESS_DATA *psPerProc,
 	psDevInfo->ui32MasterClkGateStatus2Reg = psInitInfo->ui32MasterClkGateStatus2Reg;
 	psDevInfo->ui32MasterClkGateStatus2Mask = psInitInfo->ui32MasterClkGateStatus2Mask;
 #endif /* SGX_FEATURE_MP */
+#if defined(SGX_FEATURE_AUTOCLOCKGATING)
+	psDevInfo->bDisableClockGating = psInitInfo->bDisableClockGating;
+#endif
 
 
 	/* Initialise Dev Data */
@@ -1374,7 +1377,11 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_SGXDEV_INFO	*psDevInfo,
 				host thinks the fault is correct
 			*/
 			ui32RegVal = OSReadHWReg(psDevInfo->pvRegsBaseKM, EUR_CR_BIF_INT_STAT);
+			#if defined(EUR_CR_BIF_INT_STAT_PF_N_RW_MASK)
 			if (ui32RegVal & EUR_CR_BIF_INT_STAT_PF_N_RW_MASK)
+			#else
+			if (ui32RegVal & EUR_CR_BIF_INT_STAT_FAULT_TYPE_MASK)	
+			#endif
 			{
 				ui32RegVal = OSReadHWReg(psDevInfo->pvRegsBaseKM, EUR_CR_BIF_FAULT);
 				ui32RegVal &= EUR_CR_BIF_FAULT_ADDR_MASK;
@@ -2099,12 +2106,10 @@ static IMG_VOID SGX_MISRHandler (IMG_VOID *pvData)
 		HWRecoveryResetSGX(psDeviceNode, 0, ISR_ID);
 	}
 
-#if defined(OS_SUPPORTS_IN_LISR)
 	if (psDeviceNode->bReProcessDeviceCommandComplete)
 	{
 		SGXScheduleProcessQueuesKM(psDeviceNode);
 	}
-#endif
 
 	SGXTestActivePowerEvent(psDeviceNode, ISR_ID);
 	

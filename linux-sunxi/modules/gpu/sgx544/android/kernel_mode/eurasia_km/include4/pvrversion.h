@@ -49,20 +49,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVR_STR2(X) PVR_STR(X)
 
 #define PVRVERSION_MAJ               1
-#define PVRVERSION_MIN               13
+#define PVRVERSION_MIN               14
 
 #define PVRVERSION_FAMILY           "sgxddk"
-#define PVRVERSION_BRANCHNAME       "1.13"
-#define PVRVERSION_BUILD             3495621
-#define PVRVERSION_BSCONTROL        "SGX_DDK_Android_RSCompute"
+#define PVRVERSION_BRANCHNAME       "MAIN"
+#define PVRVERSION_BUILD             3841212
+#define PVRVERSION_BSCONTROL        "SGX_DDK_Linux_XOrg"
 
-#define PVRVERSION_STRING           "SGX_DDK_Android_RSCompute sgxddk 1.13@" PVR_STR2(PVRVERSION_BUILD)
-#define PVRVERSION_STRING_SHORT     "1.13@" PVR_STR2(PVRVERSION_BUILD) ""
+#define PVRVERSION_STRING           "SGX_DDK_Linux_XOrg sgxddk MAIN@" PVR_STR2(PVRVERSION_BUILD)
+#define PVRVERSION_STRING_SHORT     "1.14@" PVR_STR2(PVRVERSION_BUILD) " (MAIN)"
 
 #define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
 
-#define PVRVERSION_BUILD_HI          349
-#define PVRVERSION_BUILD_LO          5621
+#define PVRVERSION_BUILD_HI          384
+#define PVRVERSION_BUILD_LO          1212
 #define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
 
 #endif /* _PVRVERSION_H_ */

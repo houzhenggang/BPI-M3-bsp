@@ -124,10 +124,19 @@ extern "C" {
 #if defined (SUPPORT_ION)
 #define PVRSRV_BRIDGE_MAP_ION_HANDLE			PVRSRV_IOWR(PVRSRV_BRIDGE_CORE_CMD_FIRST+29)
 #define PVRSRV_BRIDGE_UNMAP_ION_HANDLE			PVRSRV_IOWR(PVRSRV_BRIDGE_CORE_CMD_FIRST+30)
-#define PVRSRV_BRIDGE_CORE_CMD_LAST				(PVRSRV_BRIDGE_CORE_CMD_FIRST+30)
+#define PVRSRV_BRIDGE_ION_CMD_LAST			(PVRSRV_BRIDGE_CORE_CMD_FIRST+30)
 #else
-#define PVRSRV_BRIDGE_CORE_CMD_LAST				(PVRSRV_BRIDGE_CORE_CMD_FIRST+28)
+#define PVRSRV_BRIDGE_ION_CMD_LAST			(PVRSRV_BRIDGE_CORE_CMD_FIRST+28)
 #endif
+#if defined (SUPPORT_DMABUF)
+#define	PVRSRV_BRIDGE_DMABUF_CMD_FIRST			(PVRSRV_BRIDGE_ION_CMD_LAST+1)
+#define PVRSRV_BRIDGE_MAP_DMABUF			PVRSRV_IOWR(PVRSRV_BRIDGE_DMABUF_CMD_FIRST+0)
+#define PVRSRV_BRIDGE_UNMAP_DMABUF			PVRSRV_IOWR(PVRSRV_BRIDGE_DMABUF_CMD_FIRST+1)
+#define PVRSRV_BRIDGE_DMABUF_CMD_LAST			(PVRSRV_BRIDGE_DMABUF_CMD_FIRST+1)
+#else
+#define PVRSRV_BRIDGE_DMABUF_CMD_LAST			PVRSRV_BRIDGE_ION_CMD_LAST
+#endif
+#define	PVRSRV_BRIDGE_CORE_CMD_LAST			PVRSRV_BRIDGE_DMABUF_CMD_LAST
 /* SIM */
 #define PVRSRV_BRIDGE_SIM_CMD_FIRST				(PVRSRV_BRIDGE_CORE_CMD_LAST+1)
 #define PVRSRV_BRIDGE_PROCESS_SIMISR_EVENT		PVRSRV_IOWR(PVRSRV_BRIDGE_SIM_CMD_FIRST+0)	/*!< RTSIM pseudo ISR */
@@ -558,6 +567,27 @@ typedef struct PVRSRV_BRIDGE_IN_UNMAP_ION_HANDLE_TAG
 	IMG_UINT32              ui32BridgeFlags; /* Must be first member of structure */
 	PVRSRV_KERNEL_MEM_INFO	*psKernelMemInfo;
 }PVRSRV_BRIDGE_IN_UNMAP_ION_HANDLE;
+
+/******************************************************************************
+ *	'bridge in' map dmabuf
+ *****************************************************************************/
+typedef struct _PVRSRV_BRIDGE_IN_MAP_DMABUF_
+{
+	IMG_UINT32			ui32BridgeFlags; /* Must be first member of structure */
+	IMG_INT32			i32DmaBufFD;
+	IMG_UINT32			ui32Attribs;
+	IMG_HANDLE			hDevCookie;
+	IMG_HANDLE			hDevMemHeap;
+} PVRSRV_BRIDGE_IN_MAP_DMABUF;
+
+/******************************************************************************
+ *	'bridge in' unmap dmabuf
+ *****************************************************************************/
+typedef struct PVRSRV_BRIDGE_IN_UNMAP_DMABUF_TAG
+{
+	IMG_UINT32              ui32BridgeFlags; /* Must be first member of structure */
+	PVRSRV_KERNEL_MEM_INFO	*psKernelMemInfo;
+}PVRSRV_BRIDGE_IN_UNMAP_DMABUF;
 
 /******************************************************************************
  *	'bridge in' get free device memory
@@ -1393,6 +1423,19 @@ typedef struct PVRSRV_BRIDGE_OUT_ALLOCDEVICEMEM_TAG
 
 
 /******************************************************************************
+ *	'bridge out' free device memory
+ *****************************************************************************/
+typedef struct PVRSRV_BRIDGE_OUT_FREEDEVICEMEM_TAG
+{
+	PVRSRV_ERROR            eError;
+#if defined (PVRSRV_DEVMEM_TIME_STATS)
+	IMG_UINT32				ui32TimeToDevUnmap;
+#endif
+
+} PVRSRV_BRIDGE_OUT_FREEDEVICEMEM;
+
+
+/******************************************************************************
  *	'bridge out' export device memory
  *****************************************************************************/
 typedef struct PVRSRV_BRIDGE_OUT_EXPORTDEVICEMEM_TAG
@@ -1419,6 +1462,17 @@ typedef struct _PVRSRV_BRIDGE_OUT_MAP_ION_HANDLE_
 
 } PVRSRV_BRIDGE_OUT_MAP_ION_HANDLE;
 
+/******************************************************************************
+ *	'bridge out' map dmabuf
+ *****************************************************************************/
+typedef struct _PVRSRV_BRIDGE_OUT_MAP_DMABUF_
+{
+	PVRSRV_ERROR            eError;
+	PVRSRV_KERNEL_MEM_INFO	*psKernelMemInfo;
+	PVRSRV_CLIENT_MEM_INFO  sClientMemInfo;
+	PVRSRV_CLIENT_SYNC_INFO sClientSyncInfo;
+	IMG_SIZE_T		uiDmaBufSize;
+} PVRSRV_BRIDGE_OUT_MAP_DMABUF;
 
 /******************************************************************************
  *	'bridge out' map meminfo to user mode
